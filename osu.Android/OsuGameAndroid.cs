@@ -51,6 +51,10 @@ namespace osu.Android
         {
             base.LoadComplete();
             UserPlayingState.BindValueChanged(_ => updateOrientation());
+
+            // Only consider a Vulkan startup successful once the game has been kept open for a while.
+            // A crash, or the user closing the game quickly (e.g. on a black screen) twice in a row stops Vulkan from being chosen automatically.
+            Scheduler.AddDelayed(AndroidVulkanSupport.ConfirmStartup, 15000);
         }
 
         protected override void ScreenChanged(IOsuScreen? current, IOsuScreen? newScreen)

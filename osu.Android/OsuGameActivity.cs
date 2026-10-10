@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Versioning;
 using System.Threading.Tasks;
 using Android.App;
 using Android.Content;
@@ -12,6 +13,7 @@ using Android.Content.PM;
 using Android.Graphics;
 using Android.OS;
 using Android.Views;
+using Org.Libsdl.App;
 using osu.Framework.Android;
 using osu.Game.Database;
 using Debug = System.Diagnostics.Debug;
@@ -80,8 +82,31 @@ namespace osu.Android
             game = new OsuGameAndroid(this);
         }
 
+        protected override void Main()
+        {
+            var host = new OsuAndroidGameHost(this);
+            host.Run(CreateGame());
+        }
+
+        protected override SDLSurface CreateSDLSurface(Context? context)
+        {
+            var surface = base.CreateSDLSurface(context);
+
+            // By default, the surface is destroyed whenever the activity is hidden (switching apps, turning the screen off).
+            // The Vulkan swapchain cannot be recreated for a new surface, so keep the surface alive for as long as the view is attached instead.
+            // This also lets the GL renderer skip recreating its EGL surface on resume.
+            if (AndroidVulkanSupport.SupportsPersistentSurface)
+                surface.SetSurfaceLifecycle(SurfaceViewLifecycle.FollowsAttachment);
+
+            return surface;
+        }
+
         protected override void OnCreate(Bundle? savedInstanceState)
         {
+            // Done before the game surface is created, so that the renderer and frame limiter pick up the final refresh rate.
+            if (OperatingSystem.IsAndroidVersionAtLeast(23))
+                requestHighestRefreshRate();
+
             base.OnCreate(savedInstanceState);
 
             // OnNewIntent() only fires for an activity if it's *re-launched* while it's on top of the activity stack.
@@ -115,6 +140,36 @@ namespace osu.Android
             Assembly.Load("osu.Game.Rulesets.Taiko");
             Assembly.Load("osu.Game.Rulesets.Catch");
             Assembly.Load("osu.Game.Rulesets.Mania");
+        }
+
+        /// <summary>
+        /// Requests the display mode with the highest refresh rate available at the current resolution.
+        /// </summary>
+        /// <remarks>
+        /// Without an explicit request, many devices (e.g. with an "adaptive" refresh rate setting) keep the game at 60Hz.
+        /// </remarks>
+        [SupportedOSPlatform("android23.0")]
+        private void requestHighestRefreshRate()
+        {
+            if (Window?.Attributes == null)
+                return;
+
+            var display = WindowManager?.DefaultDisplay;
+            var currentMode = display?.GetMode();
+            var supportedModes = display?.GetSupportedModes();
+
+            if (currentMode == null || supportedModes == null)
+                return;
+
+            var bestMode = supportedModes.Where(m => m.PhysicalWidth == currentMode.PhysicalWidth && m.PhysicalHeight == currentMode.PhysicalHeight)
+                                         .MaxBy(m => m.RefreshRate);
+
+            if (bestMode == null)
+                return;
+
+            var attributes = Window.Attributes;
+            attributes.PreferredDisplayModeId = bestMode.ModeId;
+            Window.Attributes = attributes;
         }
 
         protected override void OnNewIntent(Intent? intent) => handleIntent(intent);

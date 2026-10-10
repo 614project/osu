@@ -9,6 +9,16 @@
     <ApplicationVersion Condition=" '$(ApplicationVersion)' == '' ">1</ApplicationVersion>
     <ApplicationDisplayVersion Condition=" '$(ApplicationDisplayVersion)' == '' ">$(Version)</ApplicationDisplayVersion>
   </PropertyGroup>
+  <PropertyGroup Label="Release optimisations" Condition=" '$(Configuration)' == 'Release' ">
+    <!-- Target modern 64-bit ARM devices only (e.g. Snapdragon 8 Elite, which cannot run 32-bit code at all). -->
+    <RuntimeIdentifiers>android-arm64</RuntimeIdentifiers>
+    <!-- Compile all managed code ahead of time instead of only startup paths, to avoid JIT compilation stutters during gameplay. -->
+    <RunAOTCompilation>true</RunAOTCompilation>
+    <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
+  </PropertyGroup>
+  <ItemGroup>
+    <AndroidEnvironment Include="environment.txt" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\osu.Game.Rulesets.Catch\osu.Game.Rulesets.Catch.csproj" />
     <ProjectReference Include="..\osu.Game.Rulesets.Mania\osu.Game.Rulesets.Mania.csproj" />

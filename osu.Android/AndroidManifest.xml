@@ -1,13 +1,18 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="sh.ppy.osulazer" android:installLocation="auto">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="sh.ppy.osulazer.vulkan" android:installLocation="auto">
 	<uses-sdk android:minSdkVersion="21" android:targetSdkVersion="36" />
+	<!-- Vulkan is preferred on capable devices, with GL remaining available as a fallback. -->
+	<uses-feature android:name="android.hardware.vulkan.version" android:version="0x403000" android:required="false" />
 	<application android:allowBackup="true"
 				 android:supportsRtl="true"
-				 android:label="osu!"
+				 android:label="osu! Vulkan"
+				 android:appCategory="game"
 				 android:icon="@mipmap/ic_launcher"
 				 android:roundIcon="@mipmap/ic_launcher">
+        <meta-data android:name="android.game_mode_config"
+                   android:resource="@xml/game_mode_config" />
         <provider android:name="androidx.core.content.FileProvider"
-                  android:authorities="sh.ppy.osulazer.fileprovider"
+                  android:authorities="${applicationId}.fileprovider"
                   android:grantUriPermissions="true"
                   android:exported="false">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS"

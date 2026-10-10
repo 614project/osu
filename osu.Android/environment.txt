@@ -1,0 +1,4 @@
+# Runtime environment variables, see https://learn.microsoft.com/dotnet/android/building-apps/build-items#androidenvironment
+# A larger GC nursery (default 4MB) makes minor collections much less frequent, reducing GC pauses from per-frame allocations.
+# Concurrent major collections are kept enabled, matching the default.
+MONO_GC_PARAMS=major=marksweep-conc,nursery-size=32m

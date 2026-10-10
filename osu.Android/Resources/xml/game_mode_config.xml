@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- https://developer.android.com/games/optimize/adpf/gamemode/gamemode-interventions -->
+<!-- Frame rate caps and resolution downscaling from the OS would directly hurt timing accuracy and readability, so opt out of both. -->
+<game-mode-config xmlns:android="http://schemas.android.com/apk/res/android"
+    android:allowGameDownscaling="false"
+    android:allowGameFpsOverride="false" />
