@@ -1,0 +1,73 @@
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'osu.Android/**'
+      - 'osu.Android.props'
+      - '.github/workflows/android-vulkan-apk.yml'
+name: Android Release APK
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    name: Build release APK (arm64, Vulkan)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: microsoft
+          java-version: 21
+
+      - name: Install .NET 10.0.x
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Install .NET workloads
+        run: dotnet workload install android
+
+      - name: Install Android SDK dependencies
+        run: dotnet build -t:InstallAndroidDependencies -f net10.0-android osu.Android/osu.Android.csproj -p:AndroidSdkDirectory="$ANDROID_HOME" -p:AcceptAndroidSDKLicenses=true
+
+      # To sign with a fixed key (required for installing updates over a previous build), add these repository secrets:
+      # ANDROID_KEYSTORE_BASE64 (base64 encoded keystore), ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD.
+      # Otherwise the APK is signed with a throwaway debug key.
+      - name: Prepare signing key
+        id: signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "::warning::No signing key configured, the APK will be signed with a temporary debug key."
+            exit 0
+          fi
+
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+          echo "args=-p:AndroidKeyStore=true -p:AndroidSigningKeyStore=$RUNNER_TEMP/release.keystore -p:AndroidSigningKeyAlias=$ANDROID_KEY_ALIAS -p:AndroidSigningStorePass=env:ANDROID_KEYSTORE_PASSWORD -p:AndroidSigningKeyPass=env:ANDROID_KEY_PASSWORD" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: dotnet publish -c Release -f net10.0-android osu.Android/osu.Android.csproj -p:AndroidSdkDirectory="$ANDROID_HOME" ${{ steps.signing.outputs.args }}
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: osu-android-arm64-apk
+          path: osu.Android/bin/Release/net10.0-android/publish/*-Signed.apk
+          if-no-files-found: error
+          # The APK is already compressed.
+          compression-level: 0
+          retention-days: 30
